@@ -4,121 +4,143 @@
 #include <time.h>
 
 #define tileSize 32
-#define numTiles 12
-#define middleX (500 - 8 * 32) / 2 
-#define middleY (700 - 8 * 32) / 2 
+#define numTiles 12 
+#define BOARD_SIZE 8
+#define NUM_BOMBS 10
 
-void drawBoard(Texture2D atlas, Rectangle tiles[], Rectangle source, Rectangle openCell, Rectangle flagCell, Rectangle bombCell, int clicked[8][8], int lclicked[8][8], int bclicked[8][8]){
+void drawBoard(Texture2D atlas, int clicked[BOARD_SIZE][BOARD_SIZE], int lclicked[BOARD_SIZE][BOARD_SIZE], int bclicked[BOARD_SIZE][BOARD_SIZE], int bombs[BOARD_SIZE][BOARD_SIZE]);
+int countNeighbors(int row, int col, int bombs[BOARD_SIZE][BOARD_SIZE]);
+void revealCell(int row, int col, int clicked[BOARD_SIZE][BOARD_SIZE], int bombs[BOARD_SIZE][BOARD_SIZE]);
 
-  for(int x = 0; x < 8; x++){
-    for(int y = 0; y < 8; y++){
-      DrawTextureRec(atlas, source, (Vector2){x * tileSize + middleX, y * tileSize + middleY}, WHITE);
-      if(lclicked[x][y]){
-        DrawTextureRec(atlas, flagCell, (Vector2){x * tileSize + middleX, y * tileSize + middleY}, WHITE);
-      }
-      else if(clicked[x][y]){
-        DrawTextureRec(atlas, openCell, (Vector2){x * tileSize + middleX, y * tileSize + middleY}, WHITE);
-      }
-      else if(bclicked[x][y]){
-        DrawTextureRec(atlas, bombCell, (Vector2){x * tileSize + middleX, y * tileSize + middleY}, WHITE);
-      }
-      else {
-        DrawTextureRec(atlas, source, (Vector2){x * tileSize + middleX, y * tileSize + middleY}, WHITE);
-      }
+Rectangle source;
+Rectangle flagCell;
+Rectangle bombCell;
+Rectangle numCells[9];
+
+void drawBoard(Texture2D atlas, int clicked[BOARD_SIZE][BOARD_SIZE], int lclicked[BOARD_SIZE][BOARD_SIZE], int bclicked[BOARD_SIZE][BOARD_SIZE], int bombs[BOARD_SIZE][BOARD_SIZE]){
+    int middleX = (GetScreenWidth() - BOARD_SIZE * tileSize) / 2;
+    int middleY = (GetScreenHeight() - BOARD_SIZE * tileSize) / 2;
+
+    for(int x = 0; x < BOARD_SIZE; x++){
+        for(int y = 0; y < BOARD_SIZE; y++){
+            Vector2 position = {x * tileSize + middleX, y * tileSize + middleY};
+
+            if(lclicked[x][y]){
+                DrawTextureRec(atlas, flagCell, position, WHITE);
+            }
+            else if(bclicked[x][y]){
+                DrawTextureRec(atlas, bombCell, position, WHITE);
+            }
+            else if(clicked[x][y]){
+                int neighborCount = countNeighbors(x, y, bombs);
+                DrawTextureRec(atlas, numCells[neighborCount], position, WHITE);
+            }
+            else {
+                DrawTextureRec(atlas, source, position, WHITE);
+            }
+        }
     }
-  }
+}
+
+int countNeighbors(int row, int col, int bombs[BOARD_SIZE][BOARD_SIZE]){
+    int count = 0;
+    for(int dx = -1; dx <= 1; dx++){
+        for(int dy = -1; dy <= 1; dy++){
+            if(dx == 0 && dy == 0) continue;
+            int nx = row + dx, ny = col + dy;
+            if(nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE){
+                if(bombs[nx][ny] == 2) count++;
+            }
+        }
+    }
+    return count;
+}
+
+void revealCell(int row, int col, int clicked[BOARD_SIZE][BOARD_SIZE], int bombs[BOARD_SIZE][BOARD_SIZE]){
+    if(row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) return;
+    if(clicked[row][col]) return;
+    if(bombs[row][col] == 2) return;
+    
+    clicked[row][col] = 1;
+    
+    int neighbors = countNeighbors(row, col, bombs);
+    
+    if(neighbors == 0){
+        for(int dx = -1; dx <= 1; dx++){
+            for(int dy = -1; dy <= 1; dy++){
+                if(dx == 0 && dy == 0) continue;
+                revealCell(row + dx, col + dy, clicked, bombs);
+            }
+        }
+    }
 }
 
 int main(void) {
+    InitWindow(500, 700, "Minesweeper");
+    Texture2D atlas = LoadTexture("tiles.jpg");
 
-  InitWindow(500, 700, "Minesweeper");
-  Texture2D atlas = LoadTexture("tiles.jpg");
-  Rectangle tiles[numTiles];
-  int clicked[8][8] = {0};
-  int lclicked[8][8] = {0};
-  int bclicked[8][8] = {0};
-  int bombs[8][8] = {0};
-  int count = 0;
+    for(int i = 0; i < 9; i++){
+        numCells[i] = (Rectangle){i * tileSize, 0, tileSize, tileSize};
+    }
+    source = (Rectangle){10 * tileSize, 0, tileSize, tileSize};
+    flagCell = (Rectangle){11 * tileSize, 0, tileSize, tileSize};
+    bombCell = (Rectangle){9 * tileSize, 0, tileSize, tileSize};
 
-  srand(time(NULL));
-  
-  while(count < 10){
-    int row = rand() % 8;
-    int col = rand() % 8;
-    
-    if(bombs[row][col] == 0){
-      bombs[row][col] = 2;
-      count++;
+    int clicked[BOARD_SIZE][BOARD_SIZE] = {0};
+    int lclicked[BOARD_SIZE][BOARD_SIZE] = {0};
+    int bclicked[BOARD_SIZE][BOARD_SIZE] = {0};
+    int bombs[BOARD_SIZE][BOARD_SIZE] = {0};
+    int counter = 0;
+
+    srand(time(NULL));
+    while(counter < NUM_BOMBS){
+        int row = rand() % BOARD_SIZE;
+        int col = rand() % BOARD_SIZE;
+        if(bombs[row][col] == 0){
+            bombs[row][col] = 2; 
+            counter++;
+        }
     }
 
-  }
-
-  //Vector2 clickPosition = {0, 0};
-  
-  for(int i = 0; i < numTiles; i++){
-    tiles[i] = (Rectangle){i * tileSize, 0, tileSize, tileSize};
-  }
-  
-  Rectangle source = tiles[10];
-  Rectangle openCell = tiles[0];
-  Rectangle flagCell = tiles[11];
-  Rectangle bombCell = tiles[9];
-
-  SetTargetFPS(60);
-
-  while (!WindowShouldClose()) {
-    BeginDrawing();
-    ClearBackground(LIGHTGRAY);
-    //drawBoard(atlas, tiles, source, openCell, flagCell, clicked, lclicked);
-    
-    if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
-      Vector2 mouse = GetMousePosition();
-
-      int gridX = (mouse.x - middleX) / tileSize;
-      int gridY = (mouse.y - middleY) / tileSize;
-
-      if(gridX >= 0 && gridX < 8 && gridY >= 0 && gridY < 8 && !clicked[gridX][gridY] && lclicked[gridX][gridY] == 0 && bombs[gridX][gridY] == 0){
-        //clickedX = gridX;
-        //clickedY = gridY;
+    SetTargetFPS(60);
+    while (!WindowShouldClose()) {
+        int middleX = (GetScreenWidth() - BOARD_SIZE * tileSize) / 2;
+        int middleY = (GetScreenHeight() - BOARD_SIZE * tileSize) / 2;
         
-        clicked[gridX][gridY] = 1;
+        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+            Vector2 mouse = GetMousePosition();
+            int gridX = (mouse.x - middleX) / tileSize;
+            int gridY = (mouse.y - middleY) / tileSize;
 
-        TraceLog(LOG_INFO, "Clicked cell: %d %d", gridX, gridY);
-      } else if(bombs[gridX][gridY] == 2) {
-        bclicked[gridX][gridY] = 1;
-        TraceLog(LOG_INFO, "Clicked at bomb");
-      }
-
+            if(gridX >= 0 && gridX < BOARD_SIZE && gridY >= 0 && gridY < BOARD_SIZE && !lclicked[gridX][gridY]){
+                if(bombs[gridX][gridY] == 2){
+                    bclicked[gridX][gridY] = 1;
+                    TraceLog(LOG_INFO, "Game Over! You clicked a bomb at (%d, %d)", gridX, gridY);
+                } else {
+                    revealCell(gridX, gridY, clicked, bombs);
+                    TraceLog(LOG_INFO, "Revealed cell: %d %d", gridX, gridY);
+                }
+            }
+        }
+        
+        if(IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)){
+            Vector2 mouse = GetMousePosition();
+            int gridX = (mouse.x - middleX) / tileSize;
+            int gridY = (mouse.y - middleY) / tileSize;
+            
+            if(gridX >= 0 && gridX < BOARD_SIZE && gridY >= 0 && gridY < BOARD_SIZE && !clicked[gridX][gridY]){
+                lclicked[gridX][gridY] = !lclicked[gridX][gridY];
+                TraceLog(LOG_INFO, "%s cell: %d %d", lclicked[gridX][gridY] ? "Flagged" : "Unflagged", gridX, gridY);
+            }
+        }
+        
+        BeginDrawing();
+        ClearBackground(LIGHTGRAY);
+        drawBoard(atlas, clicked, lclicked, bclicked, bombs);
+        EndDrawing();
     }
-    
-    if(IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)){
-      Vector2 mouse = GetMousePosition();
 
-      int gridX = (mouse.x - middleX) / tileSize;
-      int gridY = (mouse.y - middleY) / tileSize;
-
-      if(gridX >= 0 && gridX < 8 && gridY >= 0 && gridY < 8 && !lclicked[gridX][gridY] && clicked[gridX][gridY] == 0){
-        //clickedX = gridX;
-        //clickedY = gridY;
-        lclicked[gridX][gridY] = 1;
-        TraceLog(LOG_INFO, "Flagged cell: %d %d", gridX, gridY);
-      }
-      else if(gridX >= 0 && gridX < 8 && gridY >= 0 && gridY < 8 && lclicked[gridX][gridY]){
-        lclicked[gridX][gridY] = 0;
-        TraceLog(LOG_INFO, "Unflagged cell: %d %d", gridX, gridY);
-      }
-
-    }
-    
-    drawBoard(atlas, tiles, source, openCell, flagCell, bombCell, clicked, lclicked, bclicked);
-
-    EndDrawing();
+    UnloadTexture(atlas);
+    CloseWindow();
+    return 0;
 }
-
-  CloseWindow();
-  return 0;
-}
-
-
-
-
