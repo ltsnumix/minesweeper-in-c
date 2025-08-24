@@ -8,6 +8,14 @@
 #define BOARD_SIZE 8
 #define NUM_BOMBS 10
 
+typedef enum GameState{
+  PLAYING,
+  STATE_PLAYING,
+  //STATE_GAMEOVER
+} GameState;
+
+GameState currentState = STATE_MENU;
+
 void drawBoard(Texture2D atlas, int clicked[BOARD_SIZE][BOARD_SIZE], int lclicked[BOARD_SIZE][BOARD_SIZE], int bclicked[BOARD_SIZE][BOARD_SIZE], int bombs[BOARD_SIZE][BOARD_SIZE]);
 int countNeighbors(int row, int col, int bombs[BOARD_SIZE][BOARD_SIZE]);
 void revealCell(int row, int col, int clicked[BOARD_SIZE][BOARD_SIZE], int bombs[BOARD_SIZE][BOARD_SIZE]);
@@ -16,6 +24,45 @@ Rectangle source;
 Rectangle flagCell;
 Rectangle bombCell;
 Rectangle numCells[9];
+
+void resetGame(int clicked[BOARD_SIZE][BOARD_SIZE], int lclicked[BOARD_SIZE][BOARD_SIZE], int bclicked[BOARD_SIZE][BOARD_SIZE], int bombs[BOARD_SIZE][BOARD_SIZE]){
+  for(int i = 0; i < BOARD_SIZE; i++){
+    for(int k = 0; k < BOARD_SIZE; k++){
+      clicked[i][k] = 0;
+      lclicked[i][k] = 0;
+      bclicked[i][k] = 0;
+      bombs[i][k] = 0;
+    }
+  }
+
+  int counter = 0;
+  while(counter < NUM_BOMBS){
+    int row = rand() % BOARD_SIZE;
+    int col = rand() % BOARD_SIZE;
+    if(bombs[row][col] == 0){
+      bombs[row][col] = 2;
+      counter++;
+    }
+  }
+
+}
+
+void drawMenu() {
+    ClearBackground(LIGHTGRAY);
+    DrawText("Minesweeper", 150, 100, 40, WHITE);
+
+    if (CheckCollisionPointRec(GetMousePosition(), (Rectangle){150, 325, 200, 50})) {
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            currentState = STATE_PLAYING;
+        }
+        DrawRectangle(150, 325, 200, 50, LIGHTGRAY);
+    } else {
+        DrawRectangle(150, 325, 200, 50, GRAY);
+    }
+
+    DrawText("PLAY", 210, 340, 20, BLACK);
+}
+
 
 void drawBoard(Texture2D atlas, int clicked[BOARD_SIZE][BOARD_SIZE], int lclicked[BOARD_SIZE][BOARD_SIZE], int bclicked[BOARD_SIZE][BOARD_SIZE], int bombs[BOARD_SIZE][BOARD_SIZE]){
     int middleX = (GetScreenWidth() - BOARD_SIZE * tileSize) / 2;
@@ -104,6 +151,14 @@ int main(void) {
 
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
+
+    switch(currentState){
+      case STATE_MENU:
+        BeginDrawing();
+        drawMenu();
+        EndDrawing();
+        break;
+      case STATE_PLAYING:
         int middleX = (GetScreenWidth() - BOARD_SIZE * tileSize) / 2;
         int middleY = (GetScreenHeight() - BOARD_SIZE * tileSize) / 2;
         
@@ -116,6 +171,14 @@ int main(void) {
                 if(bombs[gridX][gridY] == 2){
                     bclicked[gridX][gridY] = 1;
                     TraceLog(LOG_INFO, "Game Over! You clicked a bomb at (%d, %d)", gridX, gridY);
+                    for(int x = 0; x < BOARD_SIZE; x++){
+                      for(int y = 0; y < BOARD_SIZE; y++){
+                        if(bombs[x][y] == 2){
+                          DrawTextureRec(atlas, bombCell, (Vector2){x * tileSize + middleX, y * tileSize + middleY}, WHITE);
+                        }
+                      }
+                    }
+                    
                 } else {
                     revealCell(gridX, gridY, clicked, bombs);
                     TraceLog(LOG_INFO, "Revealed cell: %d %d", gridX, gridY);
@@ -140,6 +203,8 @@ int main(void) {
         EndDrawing();
     }
 
+    }
+ 
     UnloadTexture(atlas);
     CloseWindow();
     return 0;

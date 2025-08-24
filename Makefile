@@ -5,7 +5,7 @@ LDFLAGS=$(shell pkg-config --libs raylib)
 all: main
 
 main: main.c
-	$(CC) $(CFLAGS) main.c -o main $(LDFLAGS)
+	$(CC) $(CFLAGS) mine.c -o mine $(LDFLAGS)
 
 clean:
 	rm -f main
